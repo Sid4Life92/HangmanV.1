@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hangman Game</title>
+  <style>
+    /* Add some basic styling to make the game look nicer */
+    body {
+      font-family: 'Montserrat';
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 36px;
+    }
+
+    #game-container {
+      width: 400px;
+      margin: 40px auto;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    }
+
+    #word-display {
+      font-size: 30px;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+
+    #guess-input {
+      width: 94%;
+      height: 40px;
+      font-size: 18px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+
+    #guess-button {
+      width: 100%;
+      height: 40px;
+      font-size: 18px;
+      padding: 10px;
+      background-color: #4CAF50;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #guess-button:hover {
+      background-color: #3e8e41;
+    }
+
+    #reset-button {
+      width: 100%;
+      height: 40px;
+      font-size: 18px;
+      padding: 10px;
+      background-color: #af4c4c;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #reset-button:hover {
+      background-color: #8e3e3e;
+    }
+
+    #word-display {
+      animation: word-display-animation 1.5s;
+    }
+  
+    @keyframes word-display-animation {
+      0% {
+        opacity: 0;
+      }
+      100% {
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <h1>Hangman Game</h1>
+    <select id="difficulty-select">
+      <option value="easy">Easy</option>
+      <option value="medium">Medium</option>
+      <option value="hard">Hard</option>
+    </select>
+    <p id="word-display"></p>
+    <canvas id="stickman-canvas" width="200" height="200"></canvas>
+    <input id="guess-input" type="text" placeholder="Guess a letter">
+    <button id="guess-button">Guess</button>
+    <p id="result"></p>
+    <button id="reset-button">Reset Game</button>
+    <audio id="correct-guess-sound" src="correct.mp3"></audio>
+    <audio id="wrong-guess-sound" src="wrong.mp3"></audio>
+    <audio id="win-sound" src="win.mp3"></audio>
+    <audio id="lose-sound" src="lose.mp3"></audio>
+    <audio id="repeat-sound" src="repeat.mp3"></audio>
+    <p id="used-letters"></p>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      guessInput.value = ''; // Clear the input field
+    });
+    
+    // Rest of your code...
+    // Get the game elements
+    const wordDisplay = document.getElementById('word-display');
+    const guessInput = document.getElementById('guess-input');
+    const guessButton = document.getElementById('guess-button');
+    const result = document.getElementById('result');
+    const stickmanCanvas = document.getElementById('stickman-canvas');
+    const stickmanContext = stickmanCanvas.getContext('2d');
+    const resetButton = document.getElementById('reset-button');
+    const difficultySelect = document.getElementById('difficulty-select');
+
+    // Define the Hangman class
+    class Hangman {
+      constructor(difficulty) {
+        this.wordList = [];
+        this.difficulty = difficulty;
+        this.word = '';
+        this.display = [];
+        this.guesses = 10;
+        this.guessedLetters = [];
+
+        switch (difficulty) {
+          case 'easy':
+            this.wordList = ['apple', 'basic', 'cloud', 'dance', 'flute', 'cat', 'dog', 'car', 'tree', 'sun', 'moon', 'rain', 'snow', 'flower', 'bird'];
+            break;
+          case 'medium':
+            this.wordList = ['soccer', 'basketball', 'piano', 'violin', 'guitar', 'computer', 'programming', 'algorithm', 'software', 'banana', 'camera', 'danger', 'flavor', 'microscope', 'telescope', 'kaleidoscope', 'compass', 'elephant', 'butterfly'];
+            break;
+          case 'hard':
+            this.wordList = ['phenomenon', 'accelerate', 'vibration', 'oscillation', 'catalyst', 'reaction', 'narrative', 'renaissance', 'paradox', 'elegance', 'accomplish', 'celebrate', 'difficult', 'ecstatic', 'ecosystem', 'heterogeneous', 'insurmountable',];
+            break;
+          default:
+            console.error('Invalid difficulty level');
+        }
+
+        this.selectWord();
+      }
+
+      // Method to select a random word from the word list
+      selectWord() {
+        const randomIndex = Math.floor(Math.random() * this.wordList.length);
+        this.word = this.wordList[randomIndex];
+        this.display = Array(this.word.length).fill('_');
+      }
+
+      // Method to handle player input
+      guess(letter) {
+        // Check if the letter has already been guessed
+        if (this.guessedLetters.includes(letter)) {
+          return false;
+        }
+        this.guessedLetters.push(letter);
+
+        // Check if the letter is in the word
+        let correctGuess = false;
+        for (let i = 0; i < this.word.length; i++) {
+          if (this.word[i] === letter) {
+            // Update the display
+            this.display[i] = letter;
+            correctGuess = true;
+          }
+        }
+        // Decrement the number of guesses if the letter is not in the word
+        if (!correctGuess && this.guesses > 0) {
+          this.guesses--;
+        }
+        return correctGuess;
+      }
+
+      // Method to check if the game is over
+      isGameOver() {
+        // Check if the player has guessed the word
+        if (this.display.join('') === this.word) {
+          setTimeout(() => {
+            document.getElementById("win-sound").play();
+          }, 800);
+          return true;
+        }
+        // Check if the player has run out of guesses
+        if (this.guesses === 0) {
+          setTimeout(() => {
+            document.getElementById("lose-sound").play();
+          }, 800);
+          return true;
+        }
+        return false;
+      }
+    }
+
+    function updateStickman() {
+      stickmanContext.clearRect(0, 0, stickmanCanvas.width, stickmanCanvas.height);
+      drawStickman(10 - game.guesses);
+    }
+
+    // Create a new game instance
+    let game = new Hangman(difficultySelect.value);
+    updateStickman(); // Call drawStickman with initial lives
+
+    // Update the word display
+    wordDisplay.textContent = game.display.join(' ');
+
+// Handle guess button click
+guessButton.addEventListener('click', () => {
+  if (game.isGameOver()) {
+    return;
+  } else {
+    const guess = guessInput.value.toLowerCase();
+    if (guess === '') {
+      result.textContent = 'Please enter a letter!';
+      return;
+    }
+    if (!/^[a-z]$/.test(guess)) { // Check if the input is a single letter
+      result.textContent = 'Please enter a single letter, not a number or symbol!';
+      return;
+    }
+    guessInput.value = ''; // Clear the input field
+    if (game.guessedLetters.includes(guess)) {
+      document.getElementById("repeat-sound").play();
+      result.textContent = `You already guessed the letter ${guess}. Try again!`;
+    } else {
+      if (game.guess(guess)) {
+        document.getElementById("correct-guess-sound").play();
+        wordDisplay.textContent = game.display.join(' ');
+        result.textContent = `Correct! Guesses remaining: ${game.guesses}`;
+      } else {
+        document.getElementById("wrong-guess-sound").play();
+        wordDisplay.textContent = game.display.join(' ');
+        result.textContent = `Incorrect! Guesses remaining: ${game.guesses}`;
+        stickmanContext.clearRect(0, 0, stickmanCanvas.width, stickmanCanvas.height); // Clear the canvas before drawing the stickman
+        drawStickman(10 - game.guesses);
+      }
+    }
+
+// Display the used letters
+const usedLetters = document.getElementById('used-letters');
+usedLetters.textContent = `Used letters: ${game.guessedLetters.join(', ')}`;
+if (game.isGameOver()) {
+  if (game.display.join('') === game.word) {
+    result.innerHTML = `Congratulations! You won! The word was <span style="font-weight: bold; color: #008000">${game.word}</span>.`;
+  } else {
+    result.innerHTML = `Game over! The correct answer was <span style="font-weight: bold; color: #800000">${game.word}</span>.`;
+  }
+}
+guessInput.value = '';
+}
+});
+
+    // Handle reset button click
+    resetButton.addEventListener('click', () => {
+      game = new Hangman(difficultySelect.value);
+      wordDisplay.textContent = game.display.join(' ');
+      result.textContent = '';
+      usedLetters.textContent = '';
+      guessInput.value = '';
+      stickmanContext.clearRect(0, 0, stickmanCanvas.width, stickmanCanvas.height);
+      setTimeout(() => {
+        drawStickman(10);
+      }, 100); // Add a 100ms delay
+    });
+
+    // Handle difficulty select change
+    difficultySelect.addEventListener('change', () => {
+      game = new Hangman(difficultySelect.value);
+      wordDisplay.textContent = game.display.join(' ');
+      result.textContent = '';
+      usedLetters.textContent = '';
+      guessInput.value = '';
+      stickmanContext.clearRect(0, 0, stickmanCanvas.width, stickmanCanvas.height);
+       setTimeout(() => {
+    drawStickman(10);
+  }, 100); // Add a 100ms delay
+    });
+
+// Function to draw the stickman
+function drawStickman(lives) {
+  stickmanContext.beginPath();
+  stickmanContext.strokeStyle = 'black';
+  stickmanContext.lineWidth = 2;
+
+// Draw the base of the gallows
+if (lives >= 1) {
+  stickmanContext.beginPath();
+  stickmanContext.moveTo(100, 200);
+  stickmanContext.lineTo(200, 200);
+  stickmanContext.stroke();
+} 
+
+// Draw the vertical beam
+if (lives >= 2) {
+  stickmanContext.beginPath();
+  stickmanContext.moveTo(150, 200);
+  stickmanContext.lineTo(150, 50);
+  stickmanContext.stroke();
+}
+
+// Draw the horizontal beam
+if (lives >= 3) {
+  stickmanContext.beginPath();
+  stickmanContext.moveTo(150, 50);
+  stickmanContext.lineTo(50, 50);
+  stickmanContext.stroke();
+}
+
+// Draw the rope
+if (lives >= 4) {
+  stickmanContext.beginPath();
+  stickmanContext.moveTo(50, 50);
+  stickmanContext.lineTo(50, 100);
+  stickmanContext.stroke();
+}
+
+// Draw the head
+if (lives >= 5) {
+  stickmanContext.beginPath();
+  stickmanContext.arc(50, 120, 20, 0, 2 * Math.PI);
+  stickmanContext.stroke();
+}
+
+// Draw the body
+if (lives >= 6) {
+  stickmanContext.beginPath();
+  stickmanContext.moveTo(50, 140);
+  stickmanContext.lineTo(50, 180);
+  stickmanContext.stroke();
+}
+
+// Draw the left arm
+if (lives >= 7) {
+  stickmanContext.beginPath();
+  stickmanContext.moveTo(50, 160);
+  stickmanContext.lineTo(30, 140);
+  stickmanContext.stroke();
+}
+
+// Draw the right arm
+if (lives >= 8) {
+  stickmanContext.beginPath();
+  stickmanContext.moveTo(50, 160);
+  stickmanContext.lineTo(70, 140);
+  stickmanContext.stroke();
+}
+
+// Draw the left leg
+if (lives >= 9) {
+  stickmanContext.beginPath();
+  stickmanContext.moveTo(50, 180);
+  stickmanContext.lineTo(30, 200);
+  stickmanContext.stroke();
+}
+
+// Draw the right leg
+if (lives >= 10) {
+  stickmanContext.beginPath();
+  stickmanContext.moveTo(50, 180);
+  stickmanContext.lineTo(70, 200);
+  stickmanContext.stroke();
+ }
+}
+  </script>
+</body>
+</html>
+
